@@ -99,3 +99,78 @@ apply(managers[,8:10], 2, sd)
 apply(assets.sim, 2, sd)
 summary(assets.sim)
 matplot(assets.sim, type='l')
+
+# 6.3
+library(quantmod)
+library(MASS)
+library(PerformanceAnalytics)
+data("managers")
+ret <- managers[,8]
+ret.t.model <- fitdistr(ret, "t")
+ret.t.model
+
+set.seed(23)
+t.ret <- rt(100000, df=13) * 0.01
+summary(t.ret)
+matplot(t.ret, type='l')
+
+set.seed(77)
+norm.ret <- rnorm(100000, mean=0.05/252, sd=0.15/sqrt(252))
+summary(norm.ret)
+matplot(norm.ret, type='l')
+
+library(PerformanceAnalytics)
+t.kurt <- kurtosis(t.ret)
+norm.kurt <- kurtosis(norm.ret)
+
+# t is larger than normal
+t.kurt
+norm.kurt
+
+set.seed(77)
+norm.ret <- rnorm(100, mean=0.05/252, sd=0.15/sqrt(252))
+prices <- cumprod(1+norm.ret)
+plot(prices,type='l', main="Wealth Index")
+
+library(mvtnorm)
+library(QRM)
+library(PerformanceAnalytics)
+data(managers)
+fit <- fit.mst(managers[,8:10])
+mu <- fit$mu
+sigma <- as.matrix(fit$Sigma)
+nu <- fit$df
+n <- nrow(managers[,8:10]) 
+fit
+
+set.seed(198)
+sim.dat <- rmvt(n=n, sigma=sigma, df=nu, delta=mu)
+sim.dat <- xts(sim.dat, as.Date(index(managers[,8:10])))
+summary(sim.dat)
+matplot(sim.dat, type='l')
+
+# 6.4
+library(PerformanceAnalytics)
+data(managers)
+ret <- managers[,c(1,3,4,8)]
+colnames(ret) <-c("HF-A", "HF-B", "HF-C", "SP500")
+summary(ret)
+matplot(ret, type='l')
+
+fit <- lm(ret$SP500 ~ ., data=ret)
+fit
+
+f <-function(model, indices, x) {
+  i <- indices[x,]
+  o <- lm(model, data=i)
+  return(coef(o))
+}
+
+library(boot)
+set.seed(61)
+results <- boot(data=ret, statistic=f, R=1000, equation=SP500 ~ .)
+results
+
+results.ci <-boot.ci(results, type="basic", index=2)
+results.ci
+plot(results, index=2)
