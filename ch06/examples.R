@@ -174,3 +174,44 @@ results
 results.ci <-boot.ci(results, type="basic", index=2)
 results.ci
 plot(results, index=2)
+
+# boot examples
+library(boot)
+?city
+summary(city)
+pairs(city)
+
+ratio <- function(d, w) sum(d$x * w) / sum(d$u * w)
+city.boot <- boot(city, ratio, R=99, stype="w", sim="ordinary")
+city.boot
+city.ci <- boot.ci(city.boot, conf=c(.90, .95),
+                   type=c("norm", "basic", "perc", "bca"))
+city.ci
+boot.array(city.boot)
+
+perm.cor <- function(d, i) cor(d$x, d$u[i])
+city.perm <- boot(city, perm.cor, R=99, sim="permutation")
+city.perm
+city.perm.ci <- boot.ci(city.perm, conf=c(.90, .95),
+                        type=c("norm", "basic", "perc"))
+city.perm.ci
+boot.array(city.perm, indices=TRUE)
+
+?gravity
+summary(gravity)
+pairs(gravity)
+
+diff.means <- function(d, f) {
+  n <- nrow(d)
+  gp1 <- 1:table(as.numeric(d$series))[1]
+  m1 <- sum(d[gp1,1] * f[gp1])/sum(f[gp1])
+  m2 <- sum(d[-gp1,1] * f[-gp1])/sum(f[-gp1])
+  ss1 <- sum(d[gp1,1]^2 * f[gp1]) - (m1 *  m1 * sum(f[gp1]))
+  ss2 <- sum(d[-gp1,1]^2 * f[-gp1]) - (m2 *  m2 * sum(f[-gp1]))
+  c(m1 - m2, (ss1 + ss2)/(sum(f) - 2))
+}
+g <- gravity[as.numeric(gravity[,2]) >= 7,]
+g.boot <- boot(g, diff.means, R=99, stype="f", strata=g[,2])
+g.boot
+g.ci <- boot.ci(g.boot, type=c("stud", "norm"))
+g.ci
