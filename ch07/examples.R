@@ -76,3 +76,83 @@ chart.BarVaR(ret, legend.loc="topleft",
              legend.cex = 0.8,width=12)
 
 dev.off()
+
+# 7.2
+library(quantmod)
+library(PerformanceAnalytics)
+symbols <-c("VFINX", "VFITX")
+getSymbols(symbols, src='yahoo', from = '1991-12-31')
+prices <- do.call(merge, lapply(symbols, function(x) Cl(get(x))))
+colnames(prices) <-c(symbols)
+summary(prices)
+
+ret <-ROC(prices["/2017"], 1, "discrete", na.pad = F)
+summary(ret)
+
+w = c(0.60, 0.40)
+port <- Return.portfolio(ret, rebalance_on = "years", weights = w,
+                         wealth.index = TRUE, verbose = TRUE)
+port.ret <-ROC(port$wealthindex, 1, "discrete", na.pad = F)
+
+hist(port.ret,
+     freq = F,
+     breaks = 100,
+     col = 'gray95',
+     xlab = "return",
+     main = "Distribution of 60/40 Returns",
+     panel.first = grid() )
+curve(dnorm(x, mean(port.ret), sd(port.ret)),
+      add = TRUE, col = "black", lwd = 2)
+legend("topright", c("empirical", "normal"), fill = c("gray95", "black"))
+box()
+
+plot.ecdf(as.numeric(port.ret), main = "CDF Chart",
+          xlab = "return", col="gray50", lwd = 2, panel.first = grid() )
+curve(pnorm(x, mean(port.ret), sd(port.ret) ),
+      add = TRUE, lwd = 2, col='black')
+mtext(side = 5, "based on daily returns for 60/40 strategy", line = 0.2)
+legend("topleft",c("empirical","normal"), fill = c("gray","black"))
+abline(v=0, h=0.5, lty=2)
+box()
+
+plot.ecdf(as.numeric(port.ret),
+          main = "Left Tail: CDF Chart", xlab = "return",
+          xlim = c(-0.05, -0.01), ylim = c(0, 0.04),
+          lwd = 2, cex.points=1.5, verticals=TRUE,
+          panel.first = grid())
+curve(pnorm(x, mean(port.ret), sd(port.ret)), 
+      add = TRUE, lwd = 2, lty = 2, col = 'black')
+legend("topleft",c("empirical","normal"), lty=c(1, 2), bg="white")
+box()
+
+stats::qqnorm(port.ret, panel.first = grid() ); qqline(port.ret, col = 'black')
+stats::qqline(port.ret, col = 'black')
+abline(h = -0.01, lty=2)
+
+library(fExtremes)
+gpd.fit <- gpdFit(as.numeric(port.ret), u=-0.01) 
+gpd.fit
+tailRisk(gpd.fit, prob=0.99)
+
+var.hist <-PerformanceAnalytics::VaR(port.ret, p = 0.99,
+                                     method = c("historical"))
+es.hist <-PerformanceAnalytics::ES(port.ret, p = 0.99,
+                                   method = c("historical"))
+var.hist
+es.hist
+
+library(fExtremes)
+gpd.fit <-gpdFit(as.numeric(port.ret), u=-0.01) 
+
+set.seed(83)
+gpd.sim <-rgpd(1000000, xi = gpd.fit@fit$par.ests[1],
+               beta = gpd.fit@fit$par.ests[2])
+summary(gpd.sim)
+
+library(MASS)
+truehist(gpd.sim * -1,
+         main = paste("Simulated Left-Tail Density Histogram"),
+         ylim = c(0, 1), xlim = c(-0.06, -0.035),
+         xlab = c("estimated daily loss"),
+         col = "gray", panel.first = grid())
+box()
